@@ -1,0 +1,160 @@
+<?php
+
+define('SYNC_FROM_FILES_URL', variable_get('image_sync_from_url', ''));
+
+
+function image_sync_menu() {
+  $items = array();
+
+  $items['sites/default/files'] = array(
+    'title' => 'Files',
+    'page callback' => 'image_sync_deliver',
+    'access callback' => TRUE,
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+  $items['admin/config/media/image_sync'] = array(
+    'title' => t('Image sync settings'),
+    'page callback'   => 'drupal_get_form',
+    'page arguments' => array('image_sync_config_form'),
+    'access arguments' => array('access administration pages'),
+    'type' => MENU_NORMAL_ITEM,
+  );
+
+
+
+  return $items;
+}
+
+function image_sync_init(){
+  if(SYNC_FROM_FILES_URL == '' && user_access('access administration pages')){
+      $message = t('You must set the remote files url for image_sync to start work! !link', array('!link' => l('Visit the settings page', 'admin/config/media/image_sync')));
+      drupal_set_message($message);
+  }
+}
+
+function image_sync_menu_alter(&$items){
+  $directory_path = file_stream_wrapper_get_instance_by_scheme('public')->getDirectoryPath();
+  $items[$directory_path . '/styles/%image_style']['page callback'] = 'image_sync_style_deliver';
+}
+
+function image_sync_deliver(){
+
+$args = func_get_args();
+$target = implode('/', $args);
+
+$directory_path = file_stream_wrapper_get_instance_by_scheme('public')->getDirectoryPath();
+$default_image = drupal_get_path('module', 'image_sync').'/images/bild' .rand(0,4).'.jpg';
+
+  if(SYNC_FROM_FILES_URL !== ''){
+    if(!file_exists($directory_path .'/'.$target)){
+
+      $status = copy(SYNC_FROM_FILES_URL . $target, $directory_path .'/'.$target);
+      if($status == FALSE){
+            copy($default_image, $directory_path .'/'.$target);
+      }
+    }
+    if(file_exists($directory_path .'/'.$target)){
+      $image = image_load($directory_path .'/'.$target);
+      file_transfer($image->source, array('Content-Type' => $image->info['mime_type'], 'Content-Length' => $image->info['file_size']));
+    }
+  }
+
+  drupal_exit();
+}
+
+function image_sync_style_deliver($style, $scheme) {
+  // Check that the style is defined and the scheme is valid.
+  if (!$style || !file_stream_wrapper_valid_scheme($scheme)) {
+    drupal_exit();
+  }
+
+  $args = func_get_args();
+  array_shift($args);
+  array_shift($args);
+  $target = implode('/', $args);
+
+  if(SYNC_FROM_FILES_URL !== ''){
+    $default_image = drupal_get_path('module', 'image_dev').'/images/bild' .rand(0,4).'.jpg';
+    $image_uri = $scheme . '://' . $target;
+
+    if(!file_exists($image_uri)){
+
+      $directory_path = file_stream_wrapper_get_instance_by_scheme('public')->getDirectoryPath();
+      $status = copy(SYNC_FROM_FILES_URL . $target, $directory_path .'/'.$target);
+      if($status == FALSE){
+            copy($default_image, $directory_path .'/'.$target);
+      }
+    }
+  }
+  $derivative_uri = image_style_path($style['name'], $image_uri);
+
+  // If using the private scheme, let other modules provide headers and
+  // control access to the file.
+  if ($scheme == 'private') {
+    if (file_exists($derivative_uri)) {
+      file_download($scheme, file_uri_target($derivative_uri));
+    }
+    else {
+      $headers = module_invoke_all('file_download', $image_uri);
+      if (in_array(-1, $headers) || empty($headers)) {
+        return drupal_access_denied();
+      }
+      if (count($headers)) {
+        foreach ($headers as $name => $value) {
+          drupal_add_http_header($name, $value);
+        }
+      }
+    }
+  }
+
+  // Don't start generating the image if the derivative already exists or if
+  // generation is in progress in another thread.
+  $lock_name = 'image_style_deliver:' . $style['name'] . ':' . drupal_hash_base64($image_uri);
+  if (!file_exists($derivative_uri)) {
+    $lock_acquired = lock_acquire($lock_name);
+    if (!$lock_acquired) {
+      // Tell client to retry again in 3 seconds. Currently no browsers are known
+      // to support Retry-After.
+      drupal_add_http_header('Status', '503 Service Unavailable');
+      drupal_add_http_header('Retry-After', 3);
+      print t('Image generation in progress. Try again shortly.');
+      drupal_exit();
+    }
+  }
+
+  // Try to generate the image, unless another thread just did it while we were
+  // acquiring the lock.
+  $success = file_exists($derivative_uri) || image_style_create_derivative($style, $image_uri, $derivative_uri);
+
+  if (!empty($lock_acquired)) {
+    lock_release($lock_name);
+  }
+
+  if ($success) {
+    $image = image_load($derivative_uri);
+    file_transfer($image->source, array('Content-Type' => $image->info['mime_type'], 'Content-Length' => $image->info['file_size']));
+  }
+  else {
+    watchdog('image', 'Unable to generate the derived image located at %path.', array('%path' => $derivative_uri));
+    drupal_add_http_header('Status', '500 Internal Server Error');
+    print t('Error generating image.');
+    drupal_exit();
+  }
+}
+
+
+function image_sync_config_form($form, &$form_state){
+
+  $form = array();
+
+  $form['image_sync_from_url'] = array(
+    '#type' => 'textfield',
+    '#default_value' => variable_get('image_sync_from_url', ''),
+    '#title' => 'Remote private files url',
+    '#description' => t('The absolute url to the sites files folder from where you want to download images. e.g. http://www.mysite.se/sites/default/files/'),
+  );
+
+  return system_settings_form($form);
+
+}

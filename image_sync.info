@@ -1,0 +1,5 @@
+
+name = "Image DEV"
+description = "image dev"
+core = "7.x"
+package = "dev"
