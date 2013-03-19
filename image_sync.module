@@ -26,7 +26,7 @@ function image_sync_menu() {
   return $items;
 }
 
-function image_sync_init(){
+function image_sync_page_alter(&$vars){
   if(SYNC_FROM_FILES_URL == '' && user_access('access administration pages')){
       $message = t('You must set the remote files url for image_sync to start work! !link', array('!link' => l('Visit the settings page', 'admin/config/media/image_sync')));
       drupal_set_message($message);

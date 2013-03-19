@@ -1,5 +1,4 @@
-
-name = "Image DEV"
-description = "image dev"
+name = "Image Sync"
+description = "Copy images on demand via http from a given production site"
 core = "7.x"
-package = "dev"
+package = "Development"
