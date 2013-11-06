@@ -84,22 +84,21 @@ function _image_sync_copy_image($target){
             'http' => array('header'  => "Authorization: Basic " . base64_encode("$username:$pass"))
         ));
       }
+      
+      $dir_name = drupal_dirname($path);
+      file_prepare_directory($dir_name, FILE_CREATE_DIRECTORY);
+      
       if($content = @file_get_contents(SYNC_FROM_FILES_URL . '/' . $target, false, $context)){
         //Store in the filesystem.
-        file_prepare_directory(drupal_dirname($path), FILE_CREATE_DIRECTORY);
         file_unmanaged_save_data($content, $path, FILE_EXISTS_REPLACE);
       }
       else{
-        //$default_image = drupal_get_path('module', 'image_sync').'/images/bild' .rand(0,4).'.jpg';
-        //file_unmanaged_copy($default_image, $path, FILE_EXISTS_REPLACE);
-        $im = @imagecreate(980, 490)
-          or die("Cannot Initialize new GD image stream");
-        $background_color = imagecolorallocate($im, 207, 239, 247);
-        $text_color = imagecolorallocate($im, 30, 30, 30);	
-
-        imagestring($im, 5, 440, 230,  "Genererad Bild", $text_color);
-        imagepng($im, $path);
-        imagedestroy($im);
+        $image = @imagecreate(980, 490) or die("Cannot Initialize new GD image stream");
+        $background_color = imagecolorallocate($image, 207, 239, 247);	
+	      $save_path = file_stream_wrapper_get_instance_by_scheme('public')->getDirectoryPath() . '/' . $target;
+	
+        imagepng($image, $save_path);
+        imagedestroy($image);
        }
     }
     return $path;
