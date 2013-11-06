@@ -114,7 +114,7 @@ function image_sync_config_form($form, &$form_state){
     '#type' => 'textfield',
     '#default_value' => variable_get('image_sync_from_url', ''),
     '#title' => 'Remote private files url',
-    '#description' => t('The absolute url to the sites files folder from where you want to download images. e.g. http://www.mysite.se/sites/default/files/'),
+    '#description' => t('The absolute url to the sites files folder from where you want to download images. e.g. http://www.myproductionsite.se/sites/default/files'),
   );
 
    $form['image_sync_basic_auth'] = array(
