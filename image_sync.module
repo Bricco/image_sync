@@ -90,8 +90,16 @@ function _image_sync_copy_image($target){
         file_unmanaged_save_data($content, $path, FILE_EXISTS_REPLACE);
       }
       else{
-         $default_image = drupal_get_path('module', 'image_sync').'/images/bild' .rand(0,4).'.jpg';
-         file_unmanaged_copy($default_image, $path, FILE_EXISTS_REPLACE);
+        //$default_image = drupal_get_path('module', 'image_sync').'/images/bild' .rand(0,4).'.jpg';
+        //file_unmanaged_copy($default_image, $path, FILE_EXISTS_REPLACE);
+        $image = @imagecreate(980, 490)
+          or die("Cannot Initialize new GD image stream");
+        $background_color = imagecolorallocate($im, 207, 239, 247);
+        $text_color = imagecolorallocate($im, 30, 30, 30);	
+
+        imagestring($im, 5, 440, 230,  "Genererad Bild", $text_color);
+        imagepng($im, $path);
+        imagedestroy($im);
        }
     }
     return $path;
