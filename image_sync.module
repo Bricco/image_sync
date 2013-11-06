@@ -92,7 +92,7 @@ function _image_sync_copy_image($target){
       else{
         //$default_image = drupal_get_path('module', 'image_sync').'/images/bild' .rand(0,4).'.jpg';
         //file_unmanaged_copy($default_image, $path, FILE_EXISTS_REPLACE);
-        $image = @imagecreate(980, 490)
+        $im = @imagecreate(980, 490)
           or die("Cannot Initialize new GD image stream");
         $background_color = imagecolorallocate($im, 207, 239, 247);
         $text_color = imagecolorallocate($im, 30, 30, 30);	
