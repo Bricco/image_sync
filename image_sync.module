@@ -24,7 +24,7 @@ function image_sync_menu() {
 }
 
 function image_sync_page_alter(&$vars){
-  if(SYNC_FROM_FILES_URL == '' && user_access('access administration pages')){
+  if(SYNC_FROM_FILES_URL == '' && user_access('access administration pages') && !variable_get('image_sync_use_dummy', FALSE)){
       $message = t('You must set the remote files url for image_sync to start work! !link', array('!link' => l('Visit the settings page', 'admin/config/media/image_sync')));
       drupal_set_message($message);
   }
@@ -72,7 +72,7 @@ function image_sync_style_deliver($style, $scheme) {
 
 function _image_sync_copy_image($target){
 
-  if(SYNC_FROM_FILES_URL !== ''){
+  if(SYNC_FROM_FILES_URL !== '' || variable_get('image_sync_use_dummy', FALSE)){
 
     $path = file_build_uri($target);
     if(!is_file($path)){
@@ -88,7 +88,7 @@ function _image_sync_copy_image($target){
       $dir_name = drupal_dirname($path);
       file_prepare_directory($dir_name, FILE_CREATE_DIRECTORY);
       
-      if($content = @file_get_contents(SYNC_FROM_FILES_URL . '/' . $target, false, $context)){
+      if(!variable_get('image_sync_use_dummy', FALSE) && ($content = @file_get_contents(SYNC_FROM_FILES_URL . '/' . $target, false, $context))){
         //Store in the filesystem.
         file_unmanaged_save_data($content, $path, FILE_EXISTS_REPLACE);
       }
@@ -116,9 +116,16 @@ function image_sync_config_form($form, &$form_state){
     '#title' => 'Remote private files url',
     '#description' => t('The absolute url to the sites files folder from where you want to download images. e.g. http://www.myproductionsite.se/sites/default/files'),
   );
-
-   $form['image_sync_basic_auth'] = array(
+  
+  $form['image_sync_use_dummy'] = array(
     '#type' => 'checkbox',
+    '#default_value' => variable_get('image_sync_use_dummy', FALSE),
+    '#title' => 'Use dummy image',
+    '#description' => t('Generatede images will be used instead of fetching via http. Good option when you have limited bandwith.'),
+  );
+
+  $form['image_sync_basic_auth'] = array(
+    '#type' => 'checkbox', 
     '#default_value' => variable_get('image_sync_basic_auth', FALSE),
     '#title' => 'Basic Authorization',
   );
